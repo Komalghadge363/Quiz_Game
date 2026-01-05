@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Quiz App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --text: #111827;
+      --success: #16a34a;
+      --danger: #dc2626;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .app {
+      max-width: 650px;
+      width: 100%;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    header h1 {
+      color: var(--primary);
+    }
+
+    .card {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+
+    .question {
+      font-size: 18px;
+      margin-bottom: 15px;
+    }
+
+    .options label {
+      display: block;
+      background: #f1f5f9;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+
+    .options input {
+      margin-right: 10px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      font-size: 16px;
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px;
+      width: 100%;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .result {
+      text-align: center;
+    }
+
+    .result h2 {
+      color: var(--success);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <header>
+      <h1>🧠 AI Quiz Application</h1>
+      <p>Auto-generated questions</p>
+    </header>
+
+    <div class="card" id="quizCard">
+      <div class="meta">
+        <span id="qCount">Question 1</span>
+        <span id="timer">⏱ 15s</span>
+      </div>
+
+      <div class="question" id="questionText"></div>
+      <div class="options" id="options"></div>
+
+      <button onclick="nextQuestion()">Next</button>
+    </div>
+  </div>
+
+  <script>
+   const API_URL = "/api/quiz/generate?count=20";
+
+    let questions = [];
+    let index = 0;
+    let score = 0;
+    let timer = 15;
+    let interval;
+
+    async function loadQuestions() {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+      questions = data.questions;
+      showQuestion();
+    }
+
+    function showQuestion() {
+      clearInterval(interval);
+      timer = 15;
+      document.getElementById("timer").innerText = `⏱ ${timer}s`;
+      interval = setInterval(() => {
+        timer--;
+        document.getElementById("timer").innerText = `⏱ ${timer}s`;
+        if (timer === 0) nextQuestion();
+      }, 1000);
+
+      const q = questions[index];
+      document.getElementById("qCount").innerText =
+        `Question ${index + 1} / ${questions.length}`;
+      document.getElementById("questionText").innerText = q.question;
+
+      const optionsDiv = document.getElementById("options");
+      optionsDiv.innerHTML = "";
+
+      if (q.type === "single" || q.type === "multi") {
+        q.options.forEach(opt => {
+          optionsDiv.innerHTML += `
+            <label>
+              <input type="${q.type === "single" ? "radio" : "checkbox"}" 
+                     name="answer" value="${opt}">
+              ${opt}
+            </label>`;
+        });
+      } else {
+        optionsDiv.innerHTML = `<input type="text" id="fillAnswer" placeholder="Type your answer">`;
+      }
+    }
+
+    function nextQuestion() {
+      checkAnswer();
+      index++;
+
+      if (index >= questions.length) {
+        showResult();
+      } else {
+        showQuestion();
+      }
+    }
+
+    function checkAnswer() {
+      const q = questions[index];
+      let userAnswer = [];
+
+      if (q.type === "fill") {
+        const val = document.getElementById("fillAnswer").value.trim();
+        if (q.answer.includes(val)) score++;
+      } else {
+        document.querySelectorAll("input[name='answer']:checked")
+          .forEach(i => userAnswer.push(i.value));
+
+        if (JSON.stringify(userAnswer.sort()) === JSON.stringify(q.answer.sort())) {
+          score++;
+        }
+      }
+    }
+
+    function showResult() {
+      clearInterval(interval);
+      document.getElementById("quizCard").innerHTML = `
+        <div class="result">
+          <h2>🎉 Quiz Completed</h2>
+          <p>Your Score</p>
+          <h1>${score} / ${questions.length}</h1>
+          <button onclick="location.reload()">Restart Quiz</button>
+        </div>
+      `;
+    }
+
+    loadQuestions();
+  </script>
+</body>
+</html>
